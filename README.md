@@ -1,6 +1,6 @@
 This is just a 'utility repo' for dealing with sets of pdfs and jpegs with poorly defined filename conventions. 
 
-At time of writing this it selects all pdfs, all jpegs that do not appear to be part of a set, and where there appears ot be a set of jpegs, it selects what appears to be the first. 
+At time of writing this it selects all pdfs and all jpegs that do not appear to be part of a set. Where there appears to be a set of jpegs, it selects the jpeg which appears to be the first of the set. 
 
 To establish whether or not a given jpeg appears to be part of a set we first check if it looks like this;  
 `000001-01 - some item name (some extra detail).jpg` where `000001` is a URN and `01` is an index. We select any from the apparent set where the id is exactly "01"  
