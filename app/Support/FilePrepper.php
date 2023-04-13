@@ -118,7 +118,7 @@ class File {
         }
 
         if (str_contains($this->filename, ")") && str_contains($this->filename, "(")) {
-            if (is_numeric($this->bracketContents())) {
+            if (is_numeric($this->lastBracketsContents())) {
                 return true;
             }                      
         } 
