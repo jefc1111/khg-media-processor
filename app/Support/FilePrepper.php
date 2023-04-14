@@ -5,6 +5,9 @@ namespace App\Support;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Arr;
 
+use GravityMedia\Ghostscript\Ghostscript;
+use Symfony\Component\Process\Process;
+
 class FilePrepper {
     public function prep() {
         $urns_tracked = [];
@@ -13,7 +16,46 @@ class FilePrepper {
             $file = new File($file);        
 
             if ($file->isWanted()) {
-                // echo $file->urn.PHP_EOL;
+                // echo "_________________________".PHP_EOL;
+                // echo $file->filename.PHP_EOL;
+                // echo $file->hSize().PHP_EOL;
+
+                
+                
+                
+                if ($file->isPdf()) {
+                    // Define input and output files
+                    $inputFile = storage_path()."/app/".$file->fullPath;
+                    $outputFile = "/tmp/khg-resize/".$file->filename;
+
+                    // Create Ghostscript object
+                    $ghostscript = new Ghostscript([
+                        'quiet' => false
+                    ]);
+
+                    // Create and configure the device
+                    $device = $ghostscript->createPdfDevice($outputFile);
+                    $device->setCompatibilityLevel(1.4);
+                    $device->setPdfSettings("screen");
+
+                    // Create process
+                    $process = $device->createProcess($inputFile);
+
+                    // Print the command line
+                    print '$ ' . $process->getCommandLine() . PHP_EOL;
+
+                    // Run process
+                    $process->run(function ($type, $buffer) {
+                        if ($type === Process::ERR) {
+                            throw new \RuntimeException($buffer);
+                        }
+
+                        print $buffer;
+                    });
+                }
+
+
+
 
                 if (! array_key_exists($file->urn, $urns_tracked)) {
                     $urns_tracked[$file->urn] = 0;
@@ -25,61 +67,30 @@ class FilePrepper {
 
         foreach ($urns_tracked as $urn => $count) {
             if ($count > 2) {
+                echo "OUTLIER URN".PHP_EOL;
                 echo $urn." ".$count.PHP_EOL;
             }
         }
-        /*
-        $replacement_patterns = [
-            [[" - ", "___", "__"], "_"],
-            [[" ", "-", "&"], "_"],
-            [["(", ")", "'", "'"], ""]
-        ];
-
-        $all = array_merge(Storage::allDirectories('khg_media'), Storage::allFiles('khg_media'));
-
-        foreach ($all as $file) {
-            $file2 = str_replace($replacement_patterns[0][0], $replacement_patterns[0][1], $file);
-
-            Storage::move($file, $file2);
-
-            $file3 = str_replace($replacement_patterns[1][0], $replacement_patterns[1][1], $file2);
-
-            Storage::move($file2, $file3);
-
-            $file4 = str_replace($replacement_patterns[2][0], $replacement_patterns[2][1], $file3);
-
-            Storage::move($file3, $file4);
-        }
-        */
-        // Resize PDFs
-
-        // Move and rename all files that are actually going to be wanted for upload into a single folder, 
-        // with filename containing only the relevant id
-
-
-        // foreach (Storage::allFiles('khg_media') as $file) {
-        //     echo $file.PHP_EOL;
-        // }
     }
 }
 
 class File {
     public $mimetype;
     public $size;
-    public $path_components;
+    public $pathComponents;
     public $filename;
     public $urn;
 
     function __construct(
-        public $full_path
+        public $fullPath
     ) {
-        $this->mimetype = Storage::mimeType($full_path);
+        $this->mimetype = Storage::mimeType($fullPath);
 
-        $this->size = Storage::size($full_path);
+        $this->size = Storage::size($fullPath);
 
-        $rubble = explode("/", $full_path);
+        $rubble = explode("/", $fullPath);
 
-        $this->path_components = array_slice($rubble, 0, -1);
+        $this->pathComponents = array_slice($rubble, 0, -1);
 
         $this->filename = end($rubble);
 
@@ -88,7 +99,7 @@ class File {
     }
 
     function __toString() {
-        return $this->full_path.PHP_EOL.$this->mimetype.PHP_EOL.$this->hSize();
+        return $this->fullPath.PHP_EOL.$this->mimetype.PHP_EOL.$this->hSize();
     }
 
     function isPdf() {
@@ -145,12 +156,6 @@ class File {
 
         return false;
     }
-
-    // function isNotInASet() {
-    //     $charSeven = substr($this->filename, 6, 1);
-
-    //     return ! in_array($charSeven, ["-", "_"]);
-    // }
 
     function isWanted() {
         if ($this->isPdf()) {
