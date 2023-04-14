@@ -21,13 +21,8 @@ class FilePrepper {
                 // echo "_________________________".PHP_EOL;
                 // echo $file->filename.PHP_EOL;
                 // echo $file->hSize().PHP_EOL;
-                if (! $isDryRun) {                    
-                    if ($file->isPdf()) {
-                        $this->compressPdf(
-                            storage_path()."/app/".$file->fullPath,
-                            storage_path()."/app/khg_media_processed/".$file->outputFilename()
-                        );
-                    }
+                if (! $isDryRun) {                                        
+                    $this->compressAndCopyFile($file);                    
                 }
 
                 $wanted_files_per_urn = $this->trackQtyWantedFilesPerUrn($wanted_files_per_urn, $file);
@@ -58,7 +53,20 @@ class FilePrepper {
         }
     }
 
-    function compressPdf(string $inputFile, string $outputFile) {
+    function compressAndCopyFile(File $file): void {
+        $in = storage_path()."/app/".$file->fullPath;
+        $out = storage_path()."/app/khg_media_processed/".$file->outputFilename();
+
+        if ($file->isPdf()) {
+            $this->compressAndCopyPdf($in, $out);
+        }
+
+        if ($file->isJpeg()) {
+            $this->compressAndCopyJpeg($in, $out);
+        }
+    }
+
+    function compressAndCopyPdf(string $inputFile, string $outputFile): void {
         // Create Ghostscript object
         $ghostscript = new Ghostscript([
             'quiet' => false
@@ -83,6 +91,10 @@ class FilePrepper {
 
             print $buffer;
         });
+    }
+
+    function compressAndCopyJpeg(string $inputFile, string $outputFile): void {
+        echo 'OINK!';
     }
 }
 
@@ -135,8 +147,10 @@ class File {
     
     function isInASet(): bool {
         $charSeven = substr($this->filename, 6, 1);
+        $charSix = substr($this->filename, 5, 1);
 
-        if (in_array($charSeven, ["-", "_"])) {
+        // Checking $charSix in case of `00020 - etc`
+        if (in_array($charSeven, ["-", "_"]) && $charSix !== " ") {
             return true;
         }
 
@@ -193,6 +207,6 @@ class File {
             $extension = '???';
         }
 
-        return $this->urn.$extension;
+        return "$this->urn.$extension";
     }
 }
