@@ -94,7 +94,16 @@ class FilePrepper {
     }
 
     function compressAndCopyJpeg(string $inputFile, string $outputFile): void {
-        echo 'OINK!';
+        // https://image.intervention.io/v2/api/resize
+        // resize the image so that the largest side fits within the limit; the smaller
+        // side will be scaled to maintain the original aspect ratio
+        // Also prevent possible upsizing
+        $img = \Intervention\Image\Facades\Image::make($inputFile)->resize(1024, 1024, function ($constraint) {
+            $constraint->aspectRatio();
+            $constraint->upsize();
+        });
+
+        $img->save($outputFile, 60);
     }
 }
 
