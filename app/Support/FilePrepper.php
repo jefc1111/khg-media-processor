@@ -9,9 +9,11 @@ use GravityMedia\Ghostscript\Ghostscript;
 use Symfony\Component\Process\Process;
 
 class FilePrepper {
-    public function prep() {
-        $urns_tracked = [];
+    public function prep($isDryRun = true) {
+        $wanted_files_per_urn = [];
 
+        echo 'DRY RUN: '.($isDryRun ? 'true' : 'false').PHP_EOL.PHP_EOL;
+        
         foreach (Storage::allFiles('khg_media') as $file) {
             $file = new File($file);        
 
@@ -19,58 +21,68 @@ class FilePrepper {
                 // echo "_________________________".PHP_EOL;
                 // echo $file->filename.PHP_EOL;
                 // echo $file->hSize().PHP_EOL;
-
-                
-                
-                
-                if ($file->isPdf()) {
-                    // Define input and output files
-                    $inputFile = storage_path()."/app/".$file->fullPath;
-                    $outputFile = "/tmp/khg-resize/".$file->filename;
-
-                    // Create Ghostscript object
-                    $ghostscript = new Ghostscript([
-                        'quiet' => false
-                    ]);
-
-                    // Create and configure the device
-                    $device = $ghostscript->createPdfDevice($outputFile);
-                    $device->setCompatibilityLevel(1.4);
-                    $device->setPdfSettings("screen");
-
-                    // Create process
-                    $process = $device->createProcess($inputFile);
-
-                    // Print the command line
-                    print '$ ' . $process->getCommandLine() . PHP_EOL;
-
-                    // Run process
-                    $process->run(function ($type, $buffer) {
-                        if ($type === Process::ERR) {
-                            throw new \RuntimeException($buffer);
-                        }
-
-                        print $buffer;
-                    });
+                if (! $isDryRun) {                    
+                    if ($file->isPdf()) {
+                        $this->compressPdf(
+                            storage_path()."/app/".$file->fullPath,
+                            storage_path()."/app/khg_media_processed/".$file->outputFilename()
+                        );
+                    }
                 }
 
-
-
-
-                if (! array_key_exists($file->urn, $urns_tracked)) {
-                    $urns_tracked[$file->urn] = 0;
-                }
-
-                $urns_tracked[$file->urn]++;
+                $wanted_files_per_urn = $this->trackQtyWantedFilesPerUrn($wanted_files_per_urn, $file);
             }
         }
 
-        foreach ($urns_tracked as $urn => $count) {
+        $this->reportOutliers($wanted_files_per_urn);
+    }
+
+    function trackQtyWantedFilesPerUrn(array $wanted_files_per_urn, File $file): array {
+        if (! array_key_exists($file->urn, $wanted_files_per_urn)) {
+            $wanted_files_per_urn[$file->urn] = 0;
+        }
+
+        $wanted_files_per_urn[$file->urn]++;
+
+        return $wanted_files_per_urn;
+    }
+
+    // Shows any URNs that have more than 2 'wanted files'
+    // At this point we want 1 jpeg, 1 pdf, or one of each
+    function reportOutliers(array $wanted_files_per_urn): void {
+        foreach ($wanted_files_per_urn as $urn => $count) {
             if ($count > 2) {
-                echo "OUTLIER URN".PHP_EOL;
+                echo "OUTLIER URN (has more than two files)".PHP_EOL;
                 echo $urn." ".$count.PHP_EOL;
             }
         }
+    }
+
+    function compressPdf(string $inputFile, string $outputFile) {
+        // Create Ghostscript object
+        $ghostscript = new Ghostscript([
+            'quiet' => false
+        ]);
+
+        // Create and configure the device
+        $device = $ghostscript->createPdfDevice($outputFile);
+        $device->setCompatibilityLevel(1.4);
+        $device->setPdfSettings("screen");
+
+        // Create process
+        $process = $device->createProcess($inputFile);
+
+        // Print the command line
+        print '$ ' . $process->getCommandLine() . PHP_EOL;
+
+        // Run process
+        $process->run(function ($type, $buffer) {
+            if ($type === Process::ERR) {
+                throw new \RuntimeException($buffer);
+            }
+
+            print $buffer;
+        });
     }
 }
 
@@ -102,7 +114,7 @@ class File {
         return $this->fullPath.PHP_EOL.$this->mimetype.PHP_EOL.$this->hSize();
     }
 
-    function isPdf() {
+    function isPdf(): bool {
         return $this->mimetype === "application/pdf";
     } 
 
@@ -121,7 +133,7 @@ class File {
         return round(pow(1024, $base - floor($base)), $precision) .' '. $suffixes[floor($base)];
     } 
     
-    function isInASet() {
+    function isInASet(): bool {
         $charSeven = substr($this->filename, 6, 1);
 
         if (in_array($charSeven, ["-", "_"])) {
@@ -138,14 +150,14 @@ class File {
     }
 
     // This specifically checks the last set of brackets
-    function lastBracketsContents() {
+    function lastBracketsContents(): string {
         $openBracketPos = strrpos($this->filename, "(");
         $closedBracketPos = strrpos($this->filename, ")");
 
         return substr($this->filename, $openBracketPos + 1, $closedBracketPos - $openBracketPos - 1);
     }
 
-    function isFirstOfSet() {
+    function isFirstOfSet(): bool {
         // Looking for patterns like 005663-01 at the start of the filename
         // Also checking for (01) or similar at the end of the filename
         $charEightNine = substr($this->filename, 7, 2);
@@ -157,7 +169,7 @@ class File {
         return false;
     }
 
-    function isWanted() {
+    function isWanted(): bool {
         if ($this->isPdf()) {
             return true;
         }
@@ -170,5 +182,17 @@ class File {
         }
 
         return false;
+    }
+
+    function outputFilename(): string {
+        if ($this->isJpeg()) {
+            $extension = 'jpg';
+        } else if ($this->isPdf()) {
+            $extension = 'pdf';
+        } else {
+            $extension = '???';
+        }
+
+        return $this->urn.$extension;
     }
 }

@@ -12,7 +12,7 @@ class Prep extends Command
      *
      * @var string
      */
-    protected $signature = 'khg:prep';
+    protected $signature = 'khg:prep {--write-files}';
 
     /**
      * The console command description.
@@ -26,6 +26,6 @@ class Prep extends Command
      */
     public function handle(FilePrepper $prepper): void
     {
-        echo $prepper->prep();
+        $prepper->prep(! $this->option('write-files'));
     }
 }
