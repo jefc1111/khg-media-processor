@@ -10,26 +10,69 @@ use Symfony\Component\Process\Process;
 
 class FilePrepper {
     public function prep($isDryRun = true) {
+        $destinationDir = "out";//time();
+
+        if (! $isDryRun) { 
+            Storage::makeDirectory("khg_media_processed/$destinationDir");
+        }
+        
         $wanted_files_per_urn = [];
 
-        echo 'DRY RUN: '.($isDryRun ? 'true' : 'false').PHP_EOL.PHP_EOL;
+        echo 'Dry run: '.($isDryRun ? 'true' : 'false').PHP_EOL.PHP_EOL;
         
-        foreach (Storage::allFiles('khg_media') as $file) {
+        $allFilePaths = Storage::allFiles('khg_media');
+
+        $allFiles = collect([]);
+
+        foreach ($allFilePaths as $file) {
             $file = new File($file);        
 
-            if ($file->isWanted()) {
+            if ($file->isWanted) {
                 // echo "_________________________".PHP_EOL;
                 // echo $file->filename.PHP_EOL;
                 // echo $file->hSize().PHP_EOL;
                 if (! $isDryRun) {                                        
-                    $this->compressAndCopyFile($file);                    
+                    $this->compressAndCopyFile($file, $destinationDir);                    
                 }
 
                 $wanted_files_per_urn = $this->trackQtyWantedFilesPerUrn($wanted_files_per_urn, $file);
             }
+
+            $allFiles->push($file);
+        }
+
+        $wantedFiles = $allFiles->filter(fn(File $f) => $f->isWanted);
+        $unwantedFiles = $allFiles->filter(fn(File $f) => ! $f->isWanted);
+        
+        $unrepresentedUrns = $unwantedFiles
+        ->pluck('urn')->unique()
+        ->diff($wantedFiles->pluck('urn')->unique())
+        ->values();
+
+        $counts = [
+            'wanted' => $wantedFiles->count(),
+            'unwanted' => $unwantedFiles->count(),
+            'all_files' => count($allFilePaths),
+            'unrepresented_urns' => 0
+        ];
+
+        if (! $isDryRun) { 
+            $this->makeCsv($wantedFiles, "khg_media_processed/$destinationDir/files.csv");
         }
 
         $this->reportOutliers($wanted_files_per_urn);
+        $this->reportCounts($counts);
+        $this->reportUnrepresentedUrns($unrepresentedUrns->toArray());        
+    }
+
+    private function makeCsv($files, string $filePath) {
+        $content = "URN,filename".PHP_EOL;
+
+        foreach ($files as $file) {
+            $content .= "$file->urn,{$file->outputFilename()}".PHP_EOL;
+        }
+
+        Storage::put($filePath, $content);
     }
 
     function trackQtyWantedFilesPerUrn(array $wanted_files_per_urn, File $file): array {
@@ -53,9 +96,20 @@ class FilePrepper {
         }
     }
 
-    function compressAndCopyFile(File $file): void {
+    function reportCounts(array $counts): void {
+        foreach ($counts as $k => $v) {
+            echo $k.": ".$v.PHP_EOL;
+        }
+    }
+
+    function reportUnrepresentedUrns(array $unrepresentedUrns): void {
+        echo "Unrepresented URNs".PHP_EOL;
+        echo print_r($unrepresentedUrns, true);
+    }
+
+    function compressAndCopyFile(File $file, string $destinationDir): void {
         $in = storage_path()."/app/".$file->fullPath;
-        $out = storage_path()."/app/khg_media_processed/".$file->outputFilename();
+        $out = storage_path()."/app/khg_media_processed/$destinationDir/".$file->outputFilename();
 
         if ($file->isPdf()) {
             $this->compressAndCopyPdf($in, $out);
@@ -113,6 +167,7 @@ class File {
     public $pathComponents;
     public $filename;
     public $urn;
+    public $wanted = false;
 
     function __construct(
         public $fullPath
@@ -129,6 +184,8 @@ class File {
 
         // "000203-02 - the name of the thing" -> "000203" 
         $this->urn = substr($this->filename, 0, 6);
+
+        $this->isWanted = $this->isWanted();
     }
 
     function __toString() {
@@ -192,7 +249,7 @@ class File {
         return false;
     }
 
-    function isWanted(): bool {
+    private function isWanted(): bool {
         if ($this->isPdf()) {
             return true;
         }
