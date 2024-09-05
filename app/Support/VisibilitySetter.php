@@ -17,7 +17,9 @@ class VisibilitySetter {
         $example_urns = [
             90 => 1, 
             91 => 2, 
-            92 => 3
+            92 => 3,
+            421 => 1,
+            422 => 2
         ];
 
         foreach ($example_urns as $urn => $visibility_class) {
@@ -39,33 +41,41 @@ class VisibilitySetter {
                 echo "MORE THAN ONE RESULT FOUND! URN: $urn";
 
                 echo PHP_EOL;
-
-                // PROBABLY SHOULD BAIL
+                echo PHP_EOL;
             }
 
             if ($res->count() === 0) {
                 echo "NO RESULTS FOUND! URN: $urn";
 
                 echo PHP_EOL;
-
-                // PROBABLY SHOULD BAIL
+                echo PHP_EOL;
             }
 
-            $first_result = $res[0];
+            if ($res->count() === 1) {
+                $first_result = $res[0];
             
-            echo "First result type: ".$first_result->resource_type;
-
-            if ($first_result->resource_type === ITEM) {
-                // Check visibility of item is correct for $visibility_class 
-                // if not, set it as required and log it somewhere
-
-                // Check visibility of any associated media is correct for $visibility_class 
-                // if not, set it as required and log it somewhere
-            }            
-
-            echo PHP_EOL;
-            echo PHP_EOL;
-
+                echo "First result type: ".$first_result->resource_type;
+    
+                if ($first_result->resource_type === "Omeka\Entity\Item") {
+                    // Check visibility of item is correct for $visibility_class 
+                    // if not, set it as required and log it somewhere
+    
+                    // Check visibility of any associated media is correct for $visibility_class 
+                    // if not, set it as required and log it somewhere
+                } else if ($first_result->resource_type === "Omeka\Entity\ItemSet") {
+                    // Should never get here 
+                    echo "!!! Why do we have a URN ($urn) that refers directly to an Item Set resource?";
+                } else if ($first_result->resource_type === "Omeka\Entity\Media") {
+                    // Should never get here
+                    echo "!!! Why do we have a URN ($urn) that refers directly to a Media resource?";
+                } else {
+                    // Should never get here
+                    echo "!!! Unrecognised resource_type for URN $urn.";
+                }
+    
+                echo PHP_EOL;
+                echo PHP_EOL;
+            }
         }
     }
 
