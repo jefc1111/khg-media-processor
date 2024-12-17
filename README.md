@@ -15,8 +15,22 @@ Usage
 4. Do a CSV upload using the CSV outputted by the above script, selecting Import Type 'Media', map URN to Media-specific data / Item / Identifier and map filename to Media source / Sideload. 
 5. Once the job is complete, inspect the logs and investigate any errors
 
+In the 'Import settings for media' page it should look like this;  
+```
+Column    |	   Mappings  
+__________________________________________  
+URN       |    Item [dcterms:identifier]  
+filename  |    Media source [Sideload]  
+```
+
 Notes to self;  
 This requires Ghostscript (GPL Ghostscript 10.01.1) for PDF compression.  
 Omeka-s media import docs are here: https://omeka.org/s/docs/user-manual/modules/csvimport/#import-media  
 This thread was key to getting the CSV upload part to work https://forum.omeka.org/t/error-when-appending-data-to-existing-items-via-csv-import/13253  
-
+  
+If URNs need standardising, this query can be used to trim leading zeros.
+```
+UPDATE khg.value
+SET khg.value.value = TRIM(LEADING '0' FROM khg.value.value)
+WHERE property_id=10;
+```
