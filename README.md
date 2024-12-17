@@ -15,7 +15,8 @@ Usage
 4. Do a CSV upload using the CSV outputted by the above script, selecting Import Type 'Media', map URN to Media-specific data / Item / Identifier and map filename to Media source / Sideload. 
 5. Once the job is complete, inspect the logs and investigate any errors
 
-In the 'Import settings for media' page it should look like this;
+In the 'Import settings for media' page it should look like this;  
+  
 Column    |	   Mappings
 __________________________________________
 URN       |    Item [dcterms:identifier]
