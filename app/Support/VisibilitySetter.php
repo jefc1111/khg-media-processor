@@ -9,12 +9,18 @@ class VisibilitySetter {
     use InteractsWithIO;
 
     private int $urn_property_id = 10;
-    // private int $khg_visibility_class_property_id = ?;
+
     private bool $dry_run = true;
-    private array $is_public_class_to_setting_mapping = [
-        1 => 0,
+    private array $is_public_class_to_setting_mapping_for_resources = [
+        1 => 1,
         2 => 1,
-        3 => 1
+        3 => 0
+    ];
+
+    private array $is_public_class_to_setting_mapping_for_media = [
+        1 => 1,
+        2 => 0,
+        3 => 0
     ];
 
     public function __construct()
@@ -24,8 +30,10 @@ class VisibilitySetter {
 
     public function set_visibility($is_dry_run = true) 
     {
+        $this->dry_run = $is_dry_run;
+
         if ($this->dry_run) {
-            $this->warn("DRY RUN");
+            $this->warn("IS DRY RUN");
         }
 
         $this->initial_summary();
@@ -35,7 +43,7 @@ class VisibilitySetter {
 
     private function set_is_public_for_item(\stdClass $item, int $visibility_class, $urn): void 
     {
-        if (! in_array($visibility_class, array_keys($this->is_public_class_to_setting_mapping))) {            
+        if (! in_array($visibility_class, array_keys($this->is_public_class_to_setting_mapping_for_resources))) {            
             throw new \Exception("Received invalid visibility class ($visibility_class).");
         }
 
@@ -43,14 +51,14 @@ class VisibilitySetter {
 
         $this->set_is_public_for_resource($item, $visibility_class);
 
-        // Now find associated Media
+        $this->set_is_public_for_media($item, $visibility_class);
     }
 
     private function set_is_public_for_resource(\stdClass $resource, int $visibility_class): void 
     {
         $current = $resource->is_public;        
 
-        $required = $this->is_public_class_to_setting_mapping[$visibility_class];
+        $required = $this->is_public_class_to_setting_mapping_for_resources[$visibility_class];
 
         $this->info("Current: $current");
         $this->info("Required: $required");
@@ -59,22 +67,63 @@ class VisibilitySetter {
             $this->warn("DB update: Change is_public to $required.");
 
             if (! $this->dry_run) {
-                // set is_public to $item_required for $item
+                // set is_public to $required for $item
+
+                \DB::table("resource")
+                ->where('id', $resource->id)
+                ->update(['is_public' => $required]);
             }
         }
     }
 
+    private function set_is_public_for_media(\stdClass $resource, int $visibility_class): void 
+    {
+        $required = $this->is_public_class_to_setting_mapping_for_media[$visibility_class];        
+
+        $located_media_items = \DB::table("media")
+        ->select([
+            'item_id AS item_id',
+            'source',
+            'media.id AS media_id', 
+            'resource.id AS resource_id', 
+            'resource.is_public AS is_public'
+        ])
+        ->join('resource', 'media.id', '=', 'resource.id')
+        ->where('item_id', $resource->id) // Note that `item_id` is the foreign key for _items_ in the `resources` table, so it seems. GAH!
+        ->get();
+        
+        foreach ($located_media_items as $located_media_item) {
+            $current = $located_media_item->is_public;
+
+            $this->info("Media file $located_media_item->source");
+            $this->info("Current: $current");
+            $this->info("Required: $required");
+
+            if ($current !== $required) {
+                $this->warn("DB update: Change is_public to $required.");
+    
+                if (! $this->dry_run) {
+                    \DB::table("resource")
+                    ->where('id', $located_media_item->media_id)
+                    ->update(['is_public' => $required]);
+                }
+            }
+        }        
+    }
+
     private function current_resource_status(): void
     {
-        $example_urns = [
-            90 => 1, 
-            91 => 2, 
-            92 => 3,
-            421 => 1,
-            422 => 2
-        ];
+        $urn_visibility_class_pairs = [];
 
-        foreach ($example_urns as $urn => $visibility_class) {
+        $res = \DB::table("urn_visibility_classes")
+        ->select("*")
+        ->get();
+
+        foreach($res as $row) {
+            $urn_visibility_class_pairs[$row->urn] = (int) $row->visibility_class; 
+        }
+
+        foreach ($urn_visibility_class_pairs as $urn => $visibility_class) {
             $this->info("URN: $urn, Visibility Class: $visibility_class");
             
             $res = \DB::table("resource")

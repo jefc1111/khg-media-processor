@@ -12,7 +12,7 @@ class SetVisibility extends Command
      *
      * @var string
      */
-    protected $signature = 'khg:set-visibility {--dry-run}';
+    protected $signature = 'khg:set-visibility {--write-files}';
 
     /**
      * The console command description.
@@ -26,6 +26,6 @@ class SetVisibility extends Command
      */
     public function handle(VisibilitySetter $visibility_setter): void
     {
-        $visibility_setter->set_visibility(!! $this->option('dry-run'));
+        $visibility_setter->set_visibility(! $this->option('write-files'));
     }
 }

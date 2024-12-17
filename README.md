@@ -1,4 +1,4 @@
-This is just a 'utility repo' for dealing with sets of pdfs and jpegs with poorly defined filename conventions. 
+# This is a 'utility repo' for dealing with sets of pdfs and jpegs with poorly defined filename conventions. 
 
 At time of writing this it selects all pdfs and all jpegs that do not appear to be part of a set. Where there appears to be a set of jpegs, it selects the jpeg which appears to be the first of the set. 
 
@@ -33,4 +33,15 @@ If URNs need standardising, this query can be used to trim leading zeros.
 UPDATE khg.value
 SET khg.value.value = TRIM(LEADING '0' FROM khg.value.value)
 WHERE property_id=10;
+```
+
+## Setting `is_public` based on visibility class
+First you need to get the contents of the table `urn_visibility_classes` up to date.  
+With that done, the following commands set `is_public` on items and associated media for all the URNs in the table, based on the visibility classes assigned.  
+As with the `prep` command, URN formats need to be harmonised first (i.e. remove leading zeros). 
+It is recommended to take a DB backup and put the site in maintenance mode to do this.  
+
+```
+php artisan khg:set-visibility # dry run
+php artisan khg:set-visibility --write-files
 ```

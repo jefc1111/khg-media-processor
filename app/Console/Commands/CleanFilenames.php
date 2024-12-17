@@ -26,6 +26,6 @@ class CleanFilenames extends Command
      */
     public function handle(FilenameCleaner $cleaner): void
     {
-        echo $cleaner->cunt();
+        echo $cleaner->does_not_exist();
     }
 }
