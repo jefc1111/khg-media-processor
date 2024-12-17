@@ -270,7 +270,7 @@ class File {
         return false;
     }
 
-    private function urnIsValid(string $urn, int $max_urn = 2071): bool {
+    private function urnIsValid(string $urn, int $max_urn = 10000000000): bool {
         return preg_match('/^\d{6}$/', $urn) && ((int) $urn) < $max_urn;
     } 
 
