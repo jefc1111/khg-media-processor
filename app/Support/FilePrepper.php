@@ -134,6 +134,8 @@ class FilePrepper {
         // Create process
         $process = $device->createProcess($inputFile);
 
+        $process->setTimeout(300);
+
         // Print the command line
         print '$ ' . $process->getCommandLine() . PHP_EOL;
 
@@ -250,6 +252,10 @@ class File {
     }
 
     private function isWanted(): bool {
+        if (! $this->urnIsValid($this->urn)) {
+            return false;
+        }
+
         if ($this->isPdf()) {
             return true;
         }
@@ -263,6 +269,10 @@ class File {
 
         return false;
     }
+
+    private function urnIsValid(string $urn, int $max_urn = 2071): bool {
+        return preg_match('/^\d{6}$/', $urn) && ((int) $urn) < $max_urn;
+    } 
 
     function outputFilename(): string {
         if ($this->isJpeg()) {
