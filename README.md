@@ -27,4 +27,10 @@ Notes to self;
 This requires Ghostscript (GPL Ghostscript 10.01.1) for PDF compression.  
 Omeka-s media import docs are here: https://omeka.org/s/docs/user-manual/modules/csvimport/#import-media  
 This thread was key to getting the CSV upload part to work https://forum.omeka.org/t/error-when-appending-data-to-existing-items-via-csv-import/13253  
-
+  
+If URNs need standardising, this query can be used to trim leading zeros.
+```
+UPDATE khg.value
+SET khg.value.value = TRIM(LEADING '0' FROM khg.value.value)
+WHERE property_id=10;
+```
