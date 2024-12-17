@@ -16,12 +16,12 @@ Usage
 5. Once the job is complete, inspect the logs and investigate any errors
 
 In the 'Import settings for media' page it should look like this;  
-  
-Column    |	   Mappings
-__________________________________________
-URN       |    Item [dcterms:identifier]
-filename  |    Media source [Sideload]
-
+```
+Column    |	   Mappings  
+__________________________________________  
+URN       |    Item [dcterms:identifier]  
+filename  |    Media source [Sideload]  
+```
 
 Notes to self;  
 This requires Ghostscript (GPL Ghostscript 10.01.1) for PDF compression.  
